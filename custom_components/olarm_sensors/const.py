@@ -11,7 +11,7 @@ from homeassistant.const import (
     STATE_ALARM_TRIGGERED,
 )
 
-VERSION = "2.3.2"
+VERSION = "2.3.3"
 
 LOGGER = logging.getLogger(__package__)
 

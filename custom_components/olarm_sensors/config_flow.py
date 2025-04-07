@@ -6,7 +6,12 @@ from typing import Any
 from .olarm_api import OlarmSetupApi  # type: ignore[import-untyped]
 import voluptuous as vol  # type: ignore[import-untyped]
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    OptionsFlow,
+    ConfigSubentryFlow,
+)
 from homeassistant.const import CONF_API_KEY, CONF_SCAN_INTERVAL
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -30,7 +35,7 @@ from .exceptions import APIForbiddenError
 class OlarmSensorsConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Olarm Sensors."""
 
-    async def _show_setup_form(self, errors=None):
+    async def _show_setup_form(self, errors=None) -> FlowResult:
         """Show the setup form to the user."""
         return self.async_show_form(
             step_id="user",
@@ -38,155 +43,149 @@ class OlarmSensorsConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors or {},
         )
 
-    async def async_step_user(self, user_input=None) -> FlowResult:
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle the initial step."""
         errors: dict[str, Any] = {}
 
         if user_input is None:
             return await self._show_setup_form()
 
-        # If user_input is not None, the user has submitted the form
-        if user_input is not None:
-            # Validate the user input
-            if not user_input[CONF_API_KEY]:
-                errors[CONF_API_KEY] = "API key is required."
+        # Validate user input
+        if not user_input[CONF_API_KEY]:
+            errors[CONF_API_KEY] = "API key is required."
 
-            if not user_input[CONF_SCAN_INTERVAL]:
-                errors[CONF_SCAN_INTERVAL] = "Scan interval is required."
+        if not user_input[CONF_SCAN_INTERVAL]:
+            errors[CONF_SCAN_INTERVAL] = "Scan interval is required."
+        elif user_input[CONF_SCAN_INTERVAL] < 8:
+            errors[CONF_SCAN_INTERVAL] = "Scan interval must be at least 8 seconds."
 
-            elif user_input[CONF_SCAN_INTERVAL] < 8:
-                errors[CONF_SCAN_INTERVAL] = "Scan interval must be at least 8 seconds."
+        api_key = user_input[CONF_API_KEY]
+        scan_interval = user_input[CONF_SCAN_INTERVAL]
 
-            api_key = user_input[CONF_API_KEY]
-            scan_interval = user_input[CONF_SCAN_INTERVAL]
+        if user_input[CONF_ALARM_CODE] == "1234567890":
+            alarm_code = None
+        else:
+            alarm_code = user_input[CONF_ALARM_CODE]
 
-            if user_input[CONF_ALARM_CODE] == "1234567890":
-                alarm_code = None
-
-            else:
-                alarm_code = user_input[CONF_ALARM_CODE]
-
-            if api_key not in ("mock_api_key", ""):
-                try:
-                    api = OlarmSetupApi(api_key)
-                    json = await api.get_olarm_devices()
-
-                except APIForbiddenError:
-                    LOGGER.warning(
-                        "User entered invalid credentials or API access is not enabled!"
-                    )
-                    errors[AUTHENTICATION_ERROR] = "Invalid credentials!"
-            else:
-                json = [
-                    {
-                        "deviceName": "Device1",
-                        "deviceFirmware": "1.0",
-                        "deviceId": "123",
-                        "deviceAlarmType": "Paradox",
-                    },
-                    {
-                        "deviceName": "Device2",
-                        "deviceFirmware": "1.1",
-                        "deviceId": "124",
-                        "deviceAlarmType": "IDS",
-                    },
-                ]
-
-            if json is None:
-                errors[AUTHENTICATION_ERROR] = "Invalid credentials!"
-
-            # If there are errors, show the setup form with error messages
-            if errors:
-                return await self._show_setup_form(errors=errors)
-
-            setup_devices = [dev["deviceName"] for dev in json]
-
-            # If there are no errors, create a config entry and return
-            firmware = json[0]["deviceFirmware"]
-            temp_entry = ConfigEntry(
-                domain=DOMAIN,
-                unique_id=f'olarm_sensors_{api_key}',
-                source="User",
-                version=1,
-                minor_version=0,
-                title="Olarm Sensors",
-                discovery_keys=MappingProxyType({}),
-                data={
-                    CONF_API_KEY: api_key,
-                    CONF_SCAN_INTERVAL: scan_interval,
-                    CONF_DEVICE_FIRMWARE: firmware,
-                    CONF_ALARM_CODE: alarm_code,
-                    CONF_OLARM_DEVICES: setup_devices,
-                    OLARM_DEVICE_AMOUNT: len(json),
-                    OLARM_DEVICE_NAMES: setup_devices,
-                },
-                options={
-                    CONF_API_KEY: api_key,
-                    CONF_SCAN_INTERVAL: scan_interval,
-                    CONF_DEVICE_FIRMWARE: firmware,
-                    CONF_ALARM_CODE: alarm_code,
-                    CONF_OLARM_DEVICES: setup_devices,
-                    OLARM_DEVICE_AMOUNT: len(json),
-                    OLARM_DEVICE_NAMES: setup_devices,
-                }
-            )
-
-            for device in json:
-                if device["deviceName"] not in setup_devices:
-                    continue
-
-                await asyncio.sleep(2)
-                coordinator = OlarmCoordinator(
-                    self.hass,
-                    entry=temp_entry,
-                    device_id=device["deviceId"],
-                    device_name=device["deviceName"],
-                    device_make=device["deviceAlarmType"],
+        if api_key not in ("mock_api_key", ""):
+            try:
+                api = OlarmSetupApi(api_key)
+                json = await api.get_olarm_devices()
+            except APIForbiddenError:
+                LOGGER.warning(
+                    "User entered invalid credentials or API access is not enabled!"
                 )
-
-                await coordinator.update_data()
-
-                self.hass.data[DOMAIN][device["deviceId"]] = coordinator
-
-            # Saving the device
-            return self.async_create_entry(
-                title="Olarm Sensors",
-                data={
-                    CONF_API_KEY: api_key,
-                    CONF_SCAN_INTERVAL: scan_interval,
-                    CONF_DEVICE_FIRMWARE: firmware,
-                    CONF_ALARM_CODE: alarm_code,
-                    CONF_OLARM_DEVICES: setup_devices,
-                    OLARM_DEVICES: json,
-                    OLARM_DEVICE_AMOUNT: len(json),
-                    OLARM_DEVICE_NAMES: setup_devices,
+                errors[AUTHENTICATION_ERROR] = "Invalid credentials!"
+        else:
+            json = [
+                {
+                    "deviceName": "Device1",
+                    "deviceFirmware": "1.0",
+                    "deviceId": "123",
+                    "deviceAlarmType": "Paradox",
                 },
+                {
+                    "deviceName": "Device2",
+                    "deviceFirmware": "1.1",
+                    "deviceId": "124",
+                    "deviceAlarmType": "IDS",
+                },
+            ]
+
+        if json is None:
+            errors[AUTHENTICATION_ERROR] = "Invalid credentials!"
+
+        if errors:
+            return await self._show_setup_form(errors=errors)
+
+        setup_devices = [dev["deviceName"] for dev in json]
+        firmware = json[0]["deviceFirmware"]
+
+        # Create a temporary ConfigEntry.
+        # NOTE: The addition of subentries_data=[] fixes the error in newer HA versions.
+        temp_entry = ConfigEntry(
+            domain=DOMAIN,
+            unique_id=f'olarm_sensors_{api_key}',
+            source="User",
+            version=1,
+            minor_version=0,
+            title="Olarm Sensors",
+            discovery_keys=MappingProxyType({}),
+            data={
+                CONF_API_KEY: api_key,
+                CONF_SCAN_INTERVAL: scan_interval,
+                CONF_DEVICE_FIRMWARE: firmware,
+                CONF_ALARM_CODE: alarm_code,
+                CONF_OLARM_DEVICES: setup_devices,
+                OLARM_DEVICE_AMOUNT: len(json),
+                OLARM_DEVICE_NAMES: setup_devices,
+            },
+            subentries_data=[],  # <-- Required temporary fix for newer HA versions.
+            options={
+                CONF_API_KEY: api_key,
+                CONF_SCAN_INTERVAL: scan_interval,
+                CONF_DEVICE_FIRMWARE: firmware,
+                CONF_ALARM_CODE: alarm_code,
+                CONF_OLARM_DEVICES: setup_devices,
+                OLARM_DEVICE_AMOUNT: len(json),
+                OLARM_DEVICE_NAMES: setup_devices,
+            }
+        )
+
+        for device in json:
+            if device["deviceName"] not in setup_devices:
+                continue
+
+            await asyncio.sleep(2)
+            coordinator = OlarmCoordinator(
+                self.hass,
+                entry=temp_entry,
+                device_id=device["deviceId"],
+                device_name=device["deviceName"],
+                device_make=device["deviceAlarmType"],
             )
 
-        return self.async_show_form(step_id="user", data_schema=self._get_schema())
+            await coordinator.update_data()
+            self.hass.data.setdefault(DOMAIN, {})[device["deviceId"]] = coordinator
+
+        return self.async_create_entry(
+            title="Olarm Sensors",
+            data={
+                CONF_API_KEY: api_key,
+                CONF_SCAN_INTERVAL: scan_interval,
+                CONF_DEVICE_FIRMWARE: firmware,
+                CONF_ALARM_CODE: alarm_code,
+                CONF_OLARM_DEVICES: setup_devices,
+                OLARM_DEVICES: json,
+                OLARM_DEVICE_AMOUNT: len(json),
+                OLARM_DEVICE_NAMES: setup_devices,
+            },
+        )
 
     def _get_schema(self):
         """Return the data schema for the user form."""
         return vol.Schema(
             {
-                vol.Required(
-                    CONF_API_KEY,
-                ): cv.string,
-                vol.Required(
-                    CONF_SCAN_INTERVAL
-                ): vol.All(vol.Coerce(int), vol.Range(min=8)),
-                vol.Optional(
-                    CONF_ALARM_CODE,
-                    default="1234567890"
-                ): cv.string,
+                vol.Required(CONF_API_KEY): cv.string,
+                vol.Required(CONF_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=8)),
+                vol.Optional(CONF_ALARM_CODE, default="1234567890"): cv.string,
             }
         )
 
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """Return subentries supported by this integration."""
+        # In this example, we support a "location" subentry that lets users assign devices.
+        return {"location": OlarmLocationSubentryFlow}
+
     @staticmethod
     @callback
-    def async_get_options_flow(
-        config_entry: ConfigEntry,
-    ) -> OptionsFlow:
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         """Create the options flow."""
         return OlarmOptionsFlow(config_entry)
 
@@ -199,30 +198,17 @@ class OlarmOptionsFlow(OptionsFlow):
         self.config_entry = config_entry
 
     def _get_schema(self):
-        """Return the data schema for the user form."""
-        if self.config_entry.data[CONF_ALARM_CODE] is None:
-            alarm_code = "1234567890"
-
-        else:
-            alarm_code = self.config_entry.data[CONF_ALARM_CODE]
-
+        """Return the data schema for the options form."""
+        alarm_code = self.config_entry.data.get(CONF_ALARM_CODE) or "1234567890"
         return vol.Schema(
             {
-                vol.Required(
-                    CONF_API_KEY,
-                    default=self.config_entry.data[CONF_API_KEY]
-                ): cv.string,
+                vol.Required(CONF_API_KEY, default=self.config_entry.data[CONF_API_KEY]): cv.string,
                 vol.Required(
                     CONF_SCAN_INTERVAL,
                     default=int(self.config_entry.data[CONF_SCAN_INTERVAL])
                 ): vol.All(vol.Coerce(int), vol.Range(min=8)),
-                vol.Optional(
-                    CONF_ALARM_CODE,
-                    default=alarm_code
-                ): cv.string,
-                vol.Optional(
-                    CONF_OLARM_DEVICES,
-                ): cv.multi_select(self.config_entry.data[OLARM_DEVICE_NAMES]),
+                vol.Optional(CONF_ALARM_CODE, default=alarm_code): cv.string,
+                vol.Optional(CONF_OLARM_DEVICES): cv.multi_select(self.config_entry.data[OLARM_DEVICE_NAMES]),
             }
         )
 
@@ -231,23 +217,42 @@ class OlarmOptionsFlow(OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
-            if user_input[CONF_ALARM_CODE] == "1234567890":
-                alarm_code = None
-
-            else:
-                alarm_code = user_input[CONF_ALARM_CODE]
-
+            alarm_code = None if user_input[CONF_ALARM_CODE] == "1234567890" else user_input[CONF_ALARM_CODE]
             new = {**self.config_entry.data}
-
             new[CONF_ALARM_CODE] = alarm_code
             new[OLARM_DEVICE_AMOUNT] = len(self.config_entry.data[OLARM_DEVICE_NAMES])
             new[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
             new[CONF_API_KEY] = user_input[CONF_API_KEY]
             new[CONF_OLARM_DEVICES] = user_input[CONF_OLARM_DEVICES]
-
             return self.async_create_entry(title="Olarm Sensors", data=new)
 
         return self.async_show_form(
             step_id="init",
             data_schema=self._get_schema(),
+        )
+
+
+class OlarmLocationSubentryFlow(ConfigSubentryFlow):
+    """Handle subentry flow for adding and modifying a location for Olarm Sensors,
+    including assigning devices (from the main config entry) to the location.
+    """
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """User flow to add a new location subentry and assign devices."""
+        errors = {}
+        if user_input is None:
+            # Get available device names from the main config entry.
+            device_options = self.config_entry.data.get(OLARM_DEVICE_NAMES, [])
+            data_schema = vol.Schema({
+                vol.Required("location_name"): cv.string,
+                vol.Optional("assigned_devices", default=[]): cv.multi_select(device_options),
+            })
+            return self.async_show_form(step_id="user", data_schema=data_schema, errors=errors)
+
+        # You could add extra validation here if needed.
+        return self.async_create_entry(
+            title=user_input["location_name"],
+            data=user_input,
         )
