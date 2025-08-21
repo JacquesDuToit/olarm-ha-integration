@@ -1,4 +1,4 @@
-# Current Issue with Olarm Too Many Requests
+# Current Issue with Olarm: Too Many Requests
 
 Updates regarding the issue can be found [here](https://github.com/rainepretorius/olarm-ha-integration/discussions/85).
 
@@ -10,24 +10,29 @@ While I will continue to address critical bugs and errors, new features or enhan
 
 ---
 
-## Possibility of Creating My Own Remote Monitoring solution for Paradox Systems
+# 🚨 LocknAlert – New Device for Paradox Systems
 
-I am excited to announce that I have begun developing my own version similar to an Olarm that will work on most **Paradox alarm systems**. This solution will be based on the **Paradox Alarm Interface (PAI)**, which will enable full-feature integration for Paradox systems.
+I am excited to announce that I (LocknAlert) am now producing a **standalone hardware device** that integrates **Paradox alarm systems directly into Home Assistant with no subscription required**.  
 
-### Key Features:
-- **PAI Backend**: My custom Olarm will have full Paradox Alarm Interface (PAI) support, ensuring all Paradox alarm features are accessible through the system.
-  - **Zone Monitoring and Control**: Control all Paradox alarm zones such as motion, door, and window sensors. Also supports zone tampering sensors.
-  - **Real-time Alarm Status**: Receive real-time updates on the system’s state, including arming/disarming status.
-  - **Event Logging**: Complete event logging for all alarm activities, similar to the current Olarm API but without the limitations.
-  - **Battery Monitoring**: In addition to core features, the system will monitor the **battery percentage** of the alarm, ensuring system health checks are more transparent.
+👉 Learn more here: [**locknalert.co.za**](https://locknalert.co.za)
 
-- **Garage and Gate Monitoring**: I’m also developing a unit to monitor **garage doors** and **gates**, which will integrate directly into **Home Assistant**. This will provide users with remote control and monitoring of entry points, bringing added security to their automation setup.
+This device is designed as a modern alternative to Olarm, offering **local-first control, reliability, and freedom from API limits**.
 
-Stay tuned for further developments, as this solution will open new possibilities for Paradox alarm owners, free from the current limitations imposed by Olarm’s API.
+### 🔑 Key Features:
+- **No Subscription Required** – once you own the device, you have full access.
+- **Full Paradox Support** – access to all alarm system features.
+- **Zone Monitoring and Control** – monitor and control zones such as motion, door, window, and tamper.
+- **Real-time Alarm Status** – instant updates for arming/disarming and triggered events.
+- **Event Logging** – detailed history of alarm activities without cloud restrictions.
+- **Battery Monitoring** – track alarm panel battery percentage and health.
+
+This solution gives **Paradox owners independence** from API restrictions and cloud dependency, ensuring **local reliability and long-term support**.
+
+Stay tuned for releases, installation guides, and availability updates here.
 
 ---
 
-# Olarm Home Assistant Integration
+# Olarm Home Assistant Integration (Legacy)
 
 [![Buy Me a Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=rainepretorius&button_colour=5F7FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00)](https://www.buymeacoffee.com/rainepretorius)
 
