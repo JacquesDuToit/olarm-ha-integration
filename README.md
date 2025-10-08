@@ -6,17 +6,17 @@ Updates regarding the issue can be found [here](https://github.com/rainepretoriu
 
 Due to recent changes made by Olarm that have rendered their API unusable for third-party applications, it is no longer possible to make significant updates to this integration. Specifically, the API's imposed limits and frequent "429 Too Many Requests" errors have created issues that can only be fixed by Olarm themselves.
 
-While I will continue to address critical bugs and errors, new features or enhancements will not be added until Olarm removes these restrictions or provides a direct solution. I encourage users to reach out to Olarm for further assistance. I will provide updates for possible alternatives.
+No new features or enhancements will not be added until Olarm removes these restrictions or provides a direct solution. I encourage users to reach out to Olarm for further assistance. I will provide updates for possible alternatives.
 
 ---
 
 # 🚨 LocknAlert – New Device for Paradox Systems
 
-I am excited to announce that I (LocknAlert) am now producing a **standalone hardware device** that integrates **Paradox alarm systems directly into Home Assistant with no subscription required**.  
+I am excited to announce that I (LocknAlert Pty LTD) am now producing a **standalone hardware device** that integrates **Paradox alarm systems directly into Home Assistant with no subscription required**.  
 
 👉 Learn more here: [**locknalert.co.za**](https://locknalert.co.za)
 
-This device is designed as a modern alternative to Olarm, offering **local-first control, reliability, and freedom from API limits**.
+This device is designed as a modern solution, offering **local-first control, reliability, and freedom from API limits**.
 
 ### 🔑 Key Features:
 - **No Subscription Required** – once you own the device, you have full access.
