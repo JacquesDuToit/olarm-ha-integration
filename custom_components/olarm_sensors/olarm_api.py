@@ -393,8 +393,9 @@ class OlarmApi:
         return: (list): The pgm's for the alarm panel.
         """
         try:
-            if 'pgm' in devices_json["deviceState"] and 'pgmLabels' in devices_json["deviceProfile"] and 'pgmLimit' in devices_json["deviceProfile"] and 'pgmControl' in devices_json["deviceProfile"]:
-                pgm_state = devices_json["deviceState"]["pgm"]
+            if 'pgmLabels' in devices_json["deviceProfile"] and 'pgmLimit' in devices_json["deviceProfile"] and 'pgmControl' in devices_json["deviceProfile"]:
+                state_obj = devices_json.get("deviceState", {})
+                pgm_state = state_obj.get("pgm")  # may be missing/null
                 pgm_labels = devices_json["deviceProfile"]["pgmLabels"]
                 pgm_limit = devices_json["deviceProfile"]["pgmLimit"]
                 pgm_setup = devices_json["deviceProfile"]["pgmControl"]
@@ -411,7 +412,10 @@ class OlarmApi:
         pgms = []
         try:
             for i in range(0, pgm_limit):
-                state = str(pgm_state[i]).lower() == "a"
+                if isinstance(pgm_state, (list, tuple)) and i < len(pgm_state):
+                    state = str(pgm_state[i]).lower() == "a"
+                else:
+                    state = False
                 name = pgm_labels[i]
                 if pgm_setup[i] == "":
                     continue
