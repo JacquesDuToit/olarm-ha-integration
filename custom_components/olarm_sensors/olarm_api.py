@@ -238,16 +238,13 @@ class OlarmApi:
                 except (TypeError, ValueError, KeyError, IndexError):
                     last_changed = None
 
-                if zone < len(olarm_zones["zonesLabels"]) and (
-                    olarm_zones["zonesLabels"][zone]
-                    or olarm_zones["zonesLabels"][zone] == ""
-                ):
-                    zone_name = olarm_zones["zonesLabels"][zone]
-                    zone_type = olarm_zones["zonesTypes"][zone]
-
+                labels = olarm_zones.get("zonesLabels", [])
+                types = olarm_zones.get("zonesTypes", [])
+                if zone < len(labels) and (labels[zone] or labels[zone] == ""):
+                    zone_name = labels[zone]
                 else:
                     zone_name = f"Zone {zone + 1}"
-                    zone_type = 0
+                zone_type = types[zone] if zone < len(types) else 0
 
                 self.data.append(
                     {
@@ -321,12 +318,9 @@ class OlarmApi:
                 except (TypeError, ValueError, KeyError, IndexError):
                     last_changed = None
 
-                if zone < len(olarm_zones["zonesLabels"]) and (
-                    olarm_zones["zonesLabels"][zone]
-                    or olarm_zones["zonesLabels"][zone] == ""
-                ):
-                    zone_name = olarm_zones["zonesLabels"][zone]
-
+                labels = olarm_zones.get("zonesLabels", [])
+                if zone < len(labels) and (labels[zone] or labels[zone] == ""):
+                    zone_name = labels[zone]
                 else:
                     zone_name = f"Zone {zone + 1}"
 
@@ -356,23 +350,25 @@ class OlarmApi:
         """
         olarm_state = devices_json["deviceState"]
         zones = devices_json["deviceProfile"]
-        olarm_zones = zones["areasLabels"]
+        olarm_zones = zones.get("areasLabels", [])
 
         self.panel_data = []
 
-        area_count = zones["areasLimit"]
+        area_count = zones.get("areasLimit", len(olarm_zones))
         for area_num in range(area_count):
             try:
-                if olarm_zones[area_num] == "":
-                    LOGGER.warning(
-                        "This device's area names have not been set up in Olarm, generating automatically"
-                    )
-                    olarm_zones[area_num] = f"Area {area_num + 1}"
+                name = (
+                    olarm_zones[area_num]
+                    if isinstance(olarm_zones, list)
+                    and area_num < len(olarm_zones)
+                    and olarm_zones[area_num] != ""
+                    else f"Area {area_num + 1}"
+                )
 
-                if len(olarm_state["areas"]) > area_num:
+                if len(olarm_state.get("areas", [])) > area_num:
                     self.panel_data.append(
                         {
-                            "name": f"{olarm_zones[area_num]}",
+                            "name": f"{name}",
                             "state": olarm_state["areas"][area_num],
                             "area_number": area_num + 1,
                         }

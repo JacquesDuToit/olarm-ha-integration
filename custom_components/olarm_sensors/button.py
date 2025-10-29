@@ -206,7 +206,8 @@ class UKeyButtonEntity(ButtonEntity):
         Returns:
             boolean: Whether the update worked.
         """
-        self._state = self.coordinator.ukey_data[self._ukey_number - 1]
+        if 0 <= self._ukey_number - 1 < len(self.coordinator.ukey_data):
+            self._state = self.coordinator.ukey_data[self._ukey_number - 1]
 
     async def async_press(self) -> bool:
         """Turn the custom button entity on."""
@@ -283,7 +284,8 @@ class UKeyButtonEntity(ButtonEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._state = self.coordinator.ukey_data[self._ukey_number - 1]
+        if 0 <= self._ukey_number - 1 < len(self.coordinator.ukey_data):
+            self._state = self.coordinator.ukey_data[self._ukey_number - 1]
         self.async_write_ha_state()
 
 
