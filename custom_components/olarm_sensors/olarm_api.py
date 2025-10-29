@@ -122,6 +122,15 @@ class OlarmApi:
                     )
                     return return_data
 
+                if response.status == 429:
+                    text = await response.text()
+                    LOGGER.error(
+                        "Olarm actions endpoint rate limited (429) for device (%s). Reduce scan interval or try again later.\n%s",
+                        self.device_name,
+                        text,
+                    )
+                    return return_data
+
                 try:
                     changes: dict = {
                         "actionCmd": "zone-bypass",
@@ -146,9 +155,10 @@ class OlarmApi:
                             return_data = change
 
                 except (APIContentTypeError, ContentTypeError):
-                    text = response.text
+                    text = await response.text()
                     LOGGER.error(
-                        "The Olarm API returned text instead of json. The text is:\n%s",
+                        "The Olarm API returned text instead of json. Status: %s\n%s",
+                        response.status,
                         text,
                     )
 
@@ -210,20 +220,22 @@ class OlarmApi:
 
         try:
             for zone in range(0, olarm_zones["zonesLimit"]):
-                if str(olarm_state["zones"][zone]).lower() == "a":
+                if zone < len(olarm_state.get("zones", [])) and str(olarm_state["zones"][zone]).lower() == "a":
                     state = "on"
-
                 else:
                     state = "off"
 
                 try:
-                    last_changed_dt = datetime.strptime(
-                        time.ctime(int(olarm_state["zonesStamp"][zone]) / 1000),
-                        "%a %b  %d %X %Y",
-                    )
-                    last_changed = last_changed_dt.strftime("%a %d %b %Y %X")
+                    if zone < len(olarm_state.get("zonesStamp", [])):
+                        last_changed_dt = datetime.strptime(
+                            time.ctime(int(olarm_state["zonesStamp"][zone]) / 1000),
+                            "%a %b  %d %X %Y",
+                        )
+                        last_changed = last_changed_dt.strftime("%a %d %b %Y %X")
+                    else:
+                        last_changed = None
 
-                except TypeError:
+                except (TypeError, ValueError, KeyError, IndexError):
                     last_changed = None
 
                 if zone < len(olarm_zones["zonesLabels"]) and (
@@ -292,18 +304,22 @@ class OlarmApi:
         self.bypass_data = []
         try:
             for zone in range(0, olarm_zones["zonesLimit"]):
-                if str(olarm_state["zones"][zone]).lower() == "b":
+                if zone < len(olarm_state.get("zones", [])) and str(olarm_state["zones"][zone]).lower() == "b":
                     state = "on"
-
                 else:
                     state = "off"
 
-                last_changed_dt = datetime.strptime(
-                    time.ctime(int(olarm_state["zonesStamp"][zone]) / 1000),
-                    "%a %b  %d %X %Y",
-                ) + timedelta(hours=2)
-
-                last_changed = last_changed_dt.strftime("%a %d %b %Y %X")
+                try:
+                    if zone < len(olarm_state.get("zonesStamp", [])):
+                        last_changed_dt = datetime.strptime(
+                            time.ctime(int(olarm_state["zonesStamp"][zone]) / 1000),
+                            "%a %b  %d %X %Y",
+                        ) + timedelta(hours=2)
+                        last_changed = last_changed_dt.strftime("%a %d %b %Y %X")
+                    else:
+                        last_changed = None
+                except (TypeError, ValueError, KeyError, IndexError):
+                    last_changed = None
 
                 if zone < len(olarm_zones["zonesLabels"]) and (
                     olarm_zones["zonesLabels"][zone]
@@ -400,17 +416,9 @@ class OlarmApi:
                 if pgm_setup[i] == "":
                     continue
 
-                try:
-                    enabled = pgm_setup[i][0] == "1"
-
-                except ListIndexError:
-                    continue
-
-                try:
-                    pulse = pgm_setup[i][2] == "1"
-
-                except ListIndexError:
-                    continue
+                setup_str = str(pgm_setup[i]) if pgm_setup[i] is not None else ""
+                enabled = len(setup_str) > 0 and setup_str[0] == "1"
+                pulse = len(setup_str) > 2 and setup_str[2] == "1"
 
                 number = i + 1
 

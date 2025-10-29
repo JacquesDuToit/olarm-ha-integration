@@ -236,7 +236,7 @@ class PGMSwitchEntity(SwitchEntity):
         self.entity_registry_enabled_default = enabled
         self._pgm_number = pgm_number
         self.post_data: dict = {str: str | int}
-        self.entity_id = f'switch.{self.coordinator.olarm_device_name}_pgm_{self._pgm_number + 1}'
+        self.entity_id = f'switch.{self.coordinator.olarm_device_name}_pgm_{self._pgm_number}'
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the custom switch entity off."""
@@ -245,23 +245,31 @@ class PGMSwitchEntity(SwitchEntity):
         await self.coordinator.api.update_pgm(self.post_data)
         await self.coordinator.async_update_pgm_ukey_data()
 
-        self._state = self.coordinator.pgm_data[self._pgm_number - 1]
+        if 0 <= self._pgm_number - 1 < len(self.coordinator.pgm_data):
+            self._state = self.coordinator.pgm_data[self._pgm_number - 1]["state"]
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the custom switch entity off."""
-        self.post_data = {"actionCmd": "pgm-open", "actionNum": self._pgm_number}
 
-        await self.coordinator.api.update_pgm(self.post_data)
-        await self.coordinator.async_update_pgm_ukey_data()
+await self.coordinator.api.update_pgm(self.post_data)
+await self.coordinator.async_update_pgm_ukey_data()
 
-        self._state = self.coordinator.pgm_data[self._pgm_number - 1]
-        self.async_write_ha_state()
+if 0 <= self._pgm_number - 1 < len(self.coordinator.pgm_data):
+self._state = self.coordinator.pgm_data[self._pgm_number - 1]["state"]
+self.async_write_ha_state()
 
-    async def async_added_to_hass(self) -> None:
-        """Run when the entity is added to Home Assistant."""
-        await super().async_added_to_hass()
+async def async_added_to_hass(self) -> None:
+"""Run when the entity is added to Home Assistant."""
+await super().async_added_to_hass()
 
+@property
+def available(self) -> bool:
+"""Whether the entity is available. IE the coordinator updates successfully."""
+return (
+self.coordinator.last_update > datetime.now() - timedelta(minutes=2)
+and self.coordinator.device_online
+)
     @property
     def available(self) -> bool:
         """Whether the entity is available. IE the coordinator updates successfully."""
