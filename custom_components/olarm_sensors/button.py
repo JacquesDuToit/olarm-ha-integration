@@ -6,7 +6,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_DEVICE_FIRMWARE, CONF_OLARM_DEVICES, DOMAIN, LOGGER, VERSION
@@ -94,7 +94,7 @@ async def async_setup_entry(
     LOGGER.info("Added Olarm pgm and utility key buttons")
 
 
-class PGMButtonEntity(Entity):
+class PGMButtonEntity(ButtonEntity):
     """Representation of a custom button entity."""
 
     def __init__(
@@ -110,6 +110,7 @@ class PGMButtonEntity(Entity):
         self.sensor_name = name
         self._state = state
         self.button_enabled = enabled
+        self.entity_registry_enabled_default = enabled
         self._pgm_number: int = pgm_number
         self.post_data: dict = {str: str | int}
 
@@ -186,7 +187,7 @@ class PGMButtonEntity(Entity):
         )
 
 
-class UKeyButtonEntity(Entity):
+class UKeyButtonEntity(ButtonEntity):
     """Representation of a custom button entity."""
 
     def __init__(
@@ -286,7 +287,7 @@ class UKeyButtonEntity(Entity):
         self.async_write_ha_state()
 
 
-class RefreshButtonEntity(Entity):
+class RefreshButtonEntity(ButtonEntity):
     """Representation of a button to press for refreshing the data."""
 
     def __init__(

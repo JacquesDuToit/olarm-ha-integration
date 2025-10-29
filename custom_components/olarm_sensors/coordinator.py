@@ -91,19 +91,10 @@ class OlarmCoordinator(DataUpdateCoordinator):
         try:
             # Getting all the devices for your Olarm Account.
             devices = await self.api.get_all_devices()
-            for device in devices:
-                coordinator = OlarmCoordinator(
-                    self.hass,
-                    entry=self.entry,
-                    device_id=device["deviceId"],
-                    device_name=device["deviceName"],
-                    device_make=device["deviceAlarmType"],
-                )
 
-                self.hass.data.setdefault(DOMAIN, {})
-
-                self.hass.data[DOMAIN][device["deviceId"]] = coordinator
-                self.hass.data[DOMAIN]["devices"] = devices
+            # Store/refresh the devices list only. Do not override existing coordinators here.
+            self.hass.data.setdefault(DOMAIN, {})
+            self.hass.data[DOMAIN]["devices"] = devices
 
         except ClientConnectorError as ex:
             LOGGER.error(

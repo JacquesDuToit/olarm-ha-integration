@@ -50,17 +50,22 @@ async def async_setup_entry(
         )
         # Looping through the pgm's for the panel.
         for sensor in coordinator.pgm_data:
-            # Creating a sensor for each zone on the alarm panel.
+            # Create a switch entity for both non-pulse and pulse PGMs
             if sensor["pulse"]:
-                continue
-
-            pgm_switch = PGMSwitchEntity(
-                coordinator=coordinator,
-                name=sensor["name"],
-                state=sensor["state"],
-                enabled=sensor["enabled"],
-                pgm_number=sensor["pgm_number"],
-            )
+                pgm_switch = PGMPulseSwitchEntity(
+                    coordinator=coordinator,
+                    name=sensor["name"],
+                    enabled=sensor["enabled"],
+                    pgm_number=sensor["pgm_number"],
+                )
+            else:
+                pgm_switch = PGMSwitchEntity(
+                    coordinator=coordinator,
+                    name=sensor["name"],
+                    state=sensor["state"],
+                    enabled=sensor["enabled"],
+                    pgm_number=sensor["pgm_number"],
+                )
 
             pgm_entities.append(pgm_switch)
 
@@ -300,6 +305,85 @@ class PGMSwitchEntity(SwitchEntity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
+        return {
+            "name": f"Olarm Sensors ({self.coordinator.olarm_device_name})",
+            "manufacturer": "Raine Pretorius",
+            "model": f"{self.coordinator.olarm_device_make}",
+            "identifiers": {(DOMAIN, self.coordinator.olarm_device_id)},
+            "sw_version": VERSION,
+            "hw_version": f"{self.coordinator.device_firmware}",
+        }
+
+
+class PGMPulseSwitchEntity(SwitchEntity):
+    """Momentary switch for pulse PGMs. Turns on briefly to send a pulse."""
+
+    def __init__(
+        self,
+        coordinator: OlarmCoordinator,
+        name,
+        enabled=True,
+        pgm_number=None,
+    ) -> None:
+        self.coordinator = coordinator
+        self.sensor_name = name
+        self._state = False
+        self.button_enabled = enabled
+        self.entity_registry_enabled_default = enabled
+        self._pgm_number = pgm_number
+        self.post_data: dict = {str: str | int}
+        self.entity_id = f'switch.{self.coordinator.olarm_device_name}_pgm_{self._pgm_number}'
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Send a pulse and momentarily show as on."""
+        self.post_data = {"actionCmd": "pgm-pulse", "actionNum": self._pgm_number}
+        await self.coordinator.api.update_pgm(self.post_data)
+        # Optionally refresh PGM/ukey data
+        await self.coordinator.async_update_pgm_ukey_data()
+        # Briefly set state on and then back off
+        self._state = True
+        self.async_write_ha_state()
+        await asyncio.sleep(1)
+        self._state = False
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """No-op for momentary switch; treat off as a pulse too if desired."""
+        self.post_data = {"actionCmd": "pgm-pulse", "actionNum": self._pgm_number}
+        await self.coordinator.api.update_pgm(self.post_data)
+        await self.coordinator.async_update_pgm_ukey_data()
+        self._state = False
+        self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        return (
+            self.coordinator.last_update > datetime.now() - timedelta(minutes=2)
+            and self.coordinator.device_online
+        )
+
+    @property
+    def name(self) -> str:
+        return self.sensor_name + " (" + self.coordinator.olarm_device_name + ")"
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self.coordinator.olarm_device_id}_pgm_pulse_switch_{self._pgm_number}"
+
+    @property
+    def should_poll(self) -> bool:
+        return False
+
+    @property
+    def is_on(self) -> bool:
+        return self._state
+
+    @property
+    def icon(self) -> str:
+        return "mdi:toggle-switch"
+
+    @property
+    def device_info(self) -> DeviceInfo:
         return {
             "name": f"Olarm Sensors ({self.coordinator.olarm_device_name})",
             "manufacturer": "Raine Pretorius",
