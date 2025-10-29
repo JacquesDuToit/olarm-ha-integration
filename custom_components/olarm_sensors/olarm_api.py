@@ -393,14 +393,18 @@ class OlarmApi:
         return: (list): The pgm's for the alarm panel.
         """
         try:
-            if 'pgmLabels' in devices_json["deviceProfile"] and 'pgmLimit' in devices_json["deviceProfile"] and 'pgmControl' in devices_json["deviceProfile"]:
-                state_obj = devices_json.get("deviceState", {})
-                pgm_state = state_obj.get("pgm")  # may be missing/null
-                pgm_labels = devices_json["deviceProfile"]["pgmLabels"]
-                pgm_limit = devices_json["deviceProfile"]["pgmLimit"]
-                pgm_setup = devices_json["deviceProfile"]["pgmControl"]
-            else:
+            profile = devices_json.get("deviceProfile")
+            if not isinstance(profile, dict):
                 return []
+
+            state_obj = devices_json.get("deviceState", {})
+            pgm_state = state_obj.get("pgm")  # may be missing/null
+            pgm_labels = profile.get("pgmLabels") or []
+            pgm_limit = profile.get("pgmLimit") or 0
+            pgm_setup = profile.get("pgmControl") or []
+
+            if pgm_limit == 0 and isinstance(pgm_labels, list):
+                pgm_limit = len(pgm_labels)
 
         except (DictionaryKeyError, KeyError):
             # Error with PGM setup from Olarm app. Skipping PGM's
@@ -411,16 +415,25 @@ class OlarmApi:
 
         pgms = []
         try:
-            for i in range(0, pgm_limit):
+            for i in range(0, int(pgm_limit)):
                 if isinstance(pgm_state, (list, tuple)) and i < len(pgm_state):
                     state = str(pgm_state[i]).lower() == "a"
                 else:
                     state = False
-                name = pgm_labels[i]
-                if pgm_setup[i] == "":
+
+                name = (
+                    pgm_labels[i]
+                    if isinstance(pgm_labels, list) and i < len(pgm_labels)
+                    else f"PGM {i + 1}"
+                )
+
+                setup_val = (
+                    pgm_setup[i] if isinstance(pgm_setup, list) and i < len(pgm_setup) else ""
+                )
+                if setup_val == "":
                     continue
 
-                setup_str = str(pgm_setup[i]) if pgm_setup[i] is not None else ""
+                setup_str = str(setup_val) if setup_val is not None else ""
                 enabled = len(setup_str) > 0 and setup_str[0] == "1"
                 pulse = len(setup_str) > 2 and setup_str[2] == "1"
 
